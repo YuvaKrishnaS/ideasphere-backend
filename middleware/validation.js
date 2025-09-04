@@ -1,6 +1,6 @@
 const { body, validationResult } = require('express-validator');
 
-// Handle validation errors
+// Enhanced error handler with better formatting
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   
@@ -9,7 +9,7 @@ const handleValidationErrors = (req, res, next) => {
       success: false,
       message: 'Validation failed',
       errors: errors.array().map(error => ({
-        field: error.path,
+        field: error.path || error.param,
         message: error.msg,
         value: error.value
       }))
@@ -57,14 +57,19 @@ const validateRegistration = [
     .isISO8601()
     .withMessage('Date of birth must be a valid date')
     .custom((value) => {
-      const birthDate = new Date(value);
-      const today = new Date();
-      const age = today.getFullYear() - birthDate.getFullYear();
-      
-      if (age < 13) {
-        throw new Error('User must be at least 13 years old');
+      if (value) {
+        const birthDate = new Date(value);
+        const today = new Date();
+        const age = today.getFullYear() - birthDate.getFullYear();
+        
+        if (age < 13) {
+          throw new Error('User must be at least 13 years old');
+        }
+        
+        if (age > 100) {
+          throw new Error('Please enter a valid birth date');
+        }
       }
-      
       return true;
     }),
   
@@ -113,18 +118,30 @@ const validateProfileUpdate = [
   
   body('website')
     .optional()
-    .isURL()
+    .isURL({ protocols: ['http', 'https'] })
     .withMessage('Website must be a valid URL'),
   
   body('githubProfile')
     .optional()
-    .isURL()
-    .withMessage('GitHub profile must be a valid URL'),
+    .isURL({ protocols: ['http', 'https'] })
+    .withMessage('GitHub profile must be a valid URL')
+    .custom((value) => {
+      if (value && !value.includes('github.com')) {
+        throw new Error('GitHub profile must be a github.com URL');
+      }
+      return true;
+    }),
   
   body('linkedinProfile')
     .optional()
-    .isURL()
-    .withMessage('LinkedIn profile must be a valid URL'),
+    .isURL({ protocols: ['http', 'https'] })
+    .withMessage('LinkedIn profile must be a valid URL')
+    .custom((value) => {
+      if (value && !value.includes('linkedin.com')) {
+        throw new Error('LinkedIn profile must be a linkedin.com URL');
+      }
+      return true;
+    }),
   
   handleValidationErrors
 ];
@@ -139,7 +156,110 @@ const validatePasswordChange = [
     .isLength({ min: 8 })
     .withMessage('New password must be at least 8 characters long')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('New password must contain at least one uppercase letter, one lowercase letter, and one number'),
+    .withMessage('New password must contain at least one uppercase letter, one lowercase letter, and one number')
+    .custom((value, { req }) => {
+      if (value === req.body.currentPassword) {
+        throw new Error('New password must be different from current password');
+      }
+      return true;
+    }),
+  
+  handleValidationErrors
+];
+
+// Content validation rules for Bits and Stacks
+const validateBitCreation = [
+  body('title')
+    .trim()
+    .isLength({ min: 1, max: 200 })
+    .withMessage('Title must be between 1 and 200 characters'),
+  
+  body('content')
+    .trim()
+    .isLength({ min: 1, max: 2000 })
+    .withMessage('Content must be between 1 and 2000 characters'),
+  
+  body('type')
+    .optional()
+    .isIn(['text', 'code', 'image', 'link'])
+    .withMessage('Invalid bit type'),
+  
+  body('technologies')
+    .optional()
+    .isArray()
+    .withMessage('Technologies must be an array'),
+  
+  body('tags')
+    .optional()
+    .isArray()
+    .withMessage('Tags must be an array'),
+  
+  handleValidationErrors
+];
+
+const validateStackCreation = [
+  body('title')
+    .trim()
+    .isLength({ min: 1, max: 300 })
+    .withMessage('Title must be between 1 and 300 characters'),
+  
+  body('description')
+    .trim()
+    .isLength({ min: 10, max: 1000 })
+    .withMessage('Description must be between 10 and 1000 characters'),
+  
+  body('content')
+    .trim()
+    .isLength({ min: 50 })
+    .withMessage('Content must be at least 50 characters long'),
+  
+  body('difficulty')
+    .optional()
+    .isIn(['beginner', 'intermediate', 'advanced'])
+    .withMessage('Invalid difficulty level'),
+  
+  body('estimatedTime')
+    .optional()
+    .isInt({ min: 1, max: 1440 }) // Max 24 hours
+    .withMessage('Estimated time must be between 1-1440 minutes'),
+  
+  body('technologies')
+    .optional()
+    .isArray()
+    .withMessage('Technologies must be an array'),
+  
+  body('prerequisites')
+    .optional()
+    .isArray()
+    .withMessage('Prerequisites must be an array'),
+  
+  handleValidationErrors
+];
+
+// Report validation rules
+const validateReport = [
+  body('contentType')
+    .isIn(['user', 'bit', 'stack', 'comment', 'chat_message', 'room'])
+    .withMessage('Invalid content type'),
+  
+  body('reason')
+    .isIn(['spam', 'harassment', 'inappropriate_content', 'fake_information', 'violence', 'hate_speech', 'copyright', 'other'])
+    .withMessage('Invalid reason'),
+  
+  body('description')
+    .trim()
+    .isLength({ min: 10, max: 1000 })
+    .withMessage('Description must be between 10 and 1000 characters'),
+  
+  body('reportedUserId')
+    .optional()
+    .isUUID()
+    .withMessage('Invalid reported user ID'),
+  
+  body('contentId')
+    .optional()
+    .isUUID()
+    .withMessage('Invalid content ID'),
   
   handleValidationErrors
 ];
@@ -149,5 +269,8 @@ module.exports = {
   validateLogin,
   validateProfileUpdate,
   validatePasswordChange,
+  validateBitCreation,
+  validateStackCreation,
+  validateReport,
   handleValidationErrors
 };
