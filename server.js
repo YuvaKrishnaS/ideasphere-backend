@@ -1,3 +1,14 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
+
+const app = express();
+const server = createServer(app);
+
 // Add this at the top of server.js temporarily
 const originalGet = app.get;
 const originalPost = app.post;
@@ -20,17 +31,6 @@ app.use = function(path, ...args) {
   return originalUse.call(this, path, ...args);
 };
 
-
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const { createServer } = require('http');
-const { Server } = require('socket.io');
-
-const app = express();
-const server = createServer(app);
 
 // Socket.IO setup
 const io = new Server(server, {
