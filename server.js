@@ -1,3 +1,26 @@
+// Add this at the top of server.js temporarily
+const originalGet = app.get;
+const originalPost = app.post;
+const originalUse = app.use;
+
+app.get = function(path, ...args) {
+  console.log('Registering GET route:', path);
+  return originalGet.call(this, path, ...args);
+};
+
+app.post = function(path, ...args) {
+  console.log('Registering POST route:', path);
+  return originalPost.call(this, path, ...args);
+};
+
+app.use = function(path, ...args) {
+  if (typeof path === 'string') {
+    console.log('Registering middleware for path:', path);
+  }
+  return originalUse.call(this, path, ...args);
+};
+
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -26,15 +49,15 @@ app.use(cors({
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100
 });
 app.use('/api/', limiter);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Health check endpoint (important for Railway)
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
@@ -57,7 +80,6 @@ app.use('/api/ai', require('./routes/ai'));
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
   
-  // Handle room joining for Build Together Studio
   socket.on('join-room', (roomId) => {
     socket.join(roomId);
     socket.to(roomId).emit('user-joined', socket.id);
@@ -78,15 +100,15 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
-app.use('*', (req, res) => {
+// ✅ CORRECTED 404 handler - note the parameter name after *
+app.use('/*splat', (req, res) => {
   res.status(404).json({
     success: false,
     message: 'Route not found'
   });
 });
 
-// Port configuration (important for Railway)
+// Port configuration
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, '0.0.0.0', () => {
