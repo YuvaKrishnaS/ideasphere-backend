@@ -1,133 +1,98 @@
+require('dotenv').config();
 const express = require('express');
-const http = require('http');
 const cors = require('cors');
 const helmet = require('helmet');
-const morgan = require('morgan');
-const { sequelize } = require('./models');
-const { apiLimiter } = require('./middleware/rateLimiter');
-const socketService = require('./services/socketService');
-const valkeyClient = require('./config/valkey');
-
-// --- 1. Import ALL your routes here ---
-const authRoutes = require('./routes/auth');
-const interestRoutes = require('./routes/interests');
-const projectRoutes = require('./routes/projects');
-const roomRoutes = require('./routes/room');
-const emailVerifyRoutes = require('./routes/emailVerify');
-const passwordResetRoutes = require('./routes/passwordReset');
-const passwordResetPageRoutes = require('./routes/passwordResetPage');
-const bitRoutes = require('./routes/bits');
-const stackRoutes = require('./routes/stacks');
-const reportRoutes = require('./routes/reports');
-const reputationRoutes = require('./routes/reputation');
-
-require('dotenv').config();
+const rateLimit = require('express-rate-limit');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 
 const app = express();
-const server = http.createServer(app);
-const PORT = process.env.PORT || 3000;
+const server = createServer(app);
 
-// --- 2. Standard Middleware Setup ---
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false
-}));
+// Socket.IO setup
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+// Middleware
+app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL || "*",
   credentials: true
 }));
-app.use(apiLimiter);
-app.use(morgan('combined'));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+app.use('/api/', limiter);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// --- 3. Register ALL Routes ---
-
-// Health check endpoint
+// Health check endpoint (important for Railway)
 app.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Ideashpere Backend is running!',
+  res.status(200).json({ 
+    status: 'OK', 
     timestamp: new Date().toISOString(),
-    database: sequelize.getDatabaseName(),
-    valkey: valkeyClient.isConnected ? 'connected' : 'disconnected'
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
-// ✅ FIX: Place the specific, non-API verification route here, right after health check
-app.use('/', emailVerifyRoutes);
+// API Routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/bits', require('./routes/bits'));
+app.use('/api/stacks', require('./routes/stacks'));
+app.use('/api/follow', require('./routes/follow'));
+app.use('/api/upload', require('./routes/upload'));
+app.use('/api/reports', require('./routes/reports'));
+app.use('/api/reputation', require('./routes/reputation'));
+app.use('/api/ai', require('./routes/ai'));
 
-// All other API routes prefixed with /api
-app.use('/api/auth', authRoutes);
-app.use('/api/interests', interestRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/rooms', roomRoutes);
-// Add routes (after your existing routes)
-app.use('/', passwordResetPageRoutes); // For the reset page
-app.use('/api/password-reset', passwordResetRoutes); // For API endpoints
-app.use('/api/bits', bitRoutes);
-app.use('/api/stacks', stackRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/reputation', reputationRoutes);
-
-
-// --- 4. The 404 Handler (MUST BE THE LAST ROUTE HANDLER) ---
-app.use((req, res, next) => {
-  const error = new Error(`Not Found - ${req.originalUrl}`);
-  res.status(404);
-  next(error);
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+  
+  // Handle room joining for Build Together Studio
+  socket.on('join-room', (roomId) => {
+    socket.join(roomId);
+    socket.to(roomId).emit('user-joined', socket.id);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
 });
 
-// --- 5. Global Error Handling Middleware ---
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
-  res.status(statusCode).json({
+  res.status(500).json({
     success: false,
-    message: err.message || 'Something went wrong!',
-    stack: process.env.NODE_ENV === 'production' ? '🥞' : err.stack
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err.message : {}
   });
 });
 
-// --- Server Initialization Logic (no changes here) ---
-const startServer = async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('✅ Database connection established successfully.');
-
-    await sequelize.sync({
-      alter: process.env.NODE_ENV === 'development',
-      force: false
-    });
-    console.log('✅ Database synchronized successfully.');
-
-    await valkeyClient.connect();
-
-    socketService.initialize(server);
-
-    server.listen(PORT, () => {
-      console.log(`🚀 Ideashpere backend running on port ${PORT}`);
-      console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔗 API Base: http://localhost:${PORT}/api`);
-      console.log(`⚡ Socket.IO: http://localhost:${PORT}`);
-    });
-  } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
-  }
-};
-
-process.on('unhandledRejection', (err, promise) => {
-  console.log('Unhandled Rejection at:', promise, 'reason:', err);
-  server.close(() => process.exit(1));
-});
-
-process.on('SIGTERM', async () => {
-  console.log('🛑 SIGTERM received, shutting down gracefully...');
-  await valkeyClient.disconnect();
-  server.close(() => {
-      process.exit(0);
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found'
   });
 });
 
-startServer();
+// Port configuration (important for Railway)
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 IdeaSphere Backend running on port ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+});
+
+module.exports = app;
