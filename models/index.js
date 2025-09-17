@@ -1,3 +1,6 @@
+require('dotenv').config();
+
+
 const { Sequelize, DataTypes } = require('sequelize'); // Add DataTypes here
 const sequelize = require('../config/database');
 
@@ -75,6 +78,34 @@ const UserFollow = sequelize.define('UserFollow', {
   timestamps: true
 });
 
+let sequelize;
+if (process.env.DATABASE_URL) {
+  // Railway PostgreSQL connection
+  sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: 'postgres',
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
+    },
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    }
+  });
+} else {
+  // Local development fallback
+  console.log('⚠️ No DATABASE_URL found, using SQLite fallback');
+  sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: ':memory:',
+    logging: false
+  });
+}
 // Associations
 
 User.belongsToMany(Interest, { 
@@ -195,8 +226,11 @@ Interest.belongsToMany(Room, {
   otherKey: 'roomId'
 });
 
+
+
 module.exports = {
   sequelize,
+  Sequelize,
   User,
   Interest,
   Project,
