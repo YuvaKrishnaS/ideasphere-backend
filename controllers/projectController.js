@@ -1,5 +1,5 @@
 const { Project, Interest, User, UserInterest, ProjectLike, ProjectBookmark } = require('../models');
-const { Op } = require('sequelize');
+const { Op, sequelize } = require('sequelize');
 
 class ProjectController {
   // Get projects with pagination, filtering, and search
