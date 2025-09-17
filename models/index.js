@@ -32,7 +32,7 @@ if (process.env.DATABASE_URL) {
   });
 }
 
-// Define all models inline (safer for deployment)
+// Define all models inline
 const User = sequelize.define('User', {
   id: {
     type: DataTypes.UUID,
@@ -96,7 +96,7 @@ const User = sequelize.define('User', {
     type: DataTypes.DATEONLY,
     allowNull: true
   },
-  interests: {
+  userInterests: { // ✅ FIXED: Renamed from 'interests' to 'userInterests'
     type: DataTypes.JSON,
     defaultValue: []
   },
@@ -233,7 +233,7 @@ const Stack = sequelize.define('Stack', {
     defaultValue: 'beginner'
   },
   estimatedTime: {
-    type: DataTypes.INTEGER, // in minutes
+    type: DataTypes.INTEGER,
     allowNull: true
   },
   technologies: {
@@ -321,12 +321,7 @@ const Follow = sequelize.define('Follow', {
   }
 }, {
   tableName: 'follows',
-  timestamps: true,
-  indexes: [
-    { fields: ['followerId'] },
-    { fields: ['followingId'] },
-    { fields: ['followerId', 'followingId'], unique: true }
-  ]
+  timestamps: true
 });
 
 const UserReputation = sequelize.define('UserReputation', {
@@ -456,10 +451,7 @@ const BitLike = sequelize.define('BitLike', {
   }
 }, {
   tableName: 'bit_likes',
-  timestamps: true,
-  indexes: [
-    { fields: ['userId', 'bitId'], unique: true }
-  ]
+  timestamps: true
 });
 
 const StackLike = sequelize.define('StackLike', {
@@ -486,10 +478,7 @@ const StackLike = sequelize.define('StackLike', {
   }
 }, {
   tableName: 'stack_likes',
-  timestamps: true,
-  indexes: [
-    { fields: ['userId', 'stackId'], unique: true }
-  ]
+  timestamps: true
 });
 
 const StackRating = sequelize.define('StackRating', {
@@ -524,10 +513,7 @@ const StackRating = sequelize.define('StackRating', {
   }
 }, {
   tableName: 'stack_ratings',
-  timestamps: true,
-  indexes: [
-    { fields: ['userId', 'stackId'], unique: true }
-  ]
+  timestamps: true
 });
 
 const FileUpload = sequelize.define('FileUpload', {
@@ -839,7 +825,7 @@ const UserFollow = sequelize.define('UserFollow', {
   timestamps: true
 });
 
-// Set up associations
+// Set up associations with UNIQUE ALIAS NAMES
 function setupAssociations() {
   // User associations
   User.hasOne(UserReputation, { foreignKey: 'userId', as: 'reputation' });
@@ -877,33 +863,110 @@ function setupAssociations() {
   Report.belongsTo(User, { foreignKey: 'reportedUserId', as: 'reportedUser' });
   Report.belongsTo(User, { foreignKey: 'reviewedById', as: 'reviewer' });
 
-  // Original associations (keeping for compatibility)
-  User.belongsToMany(Interest, { through: UserInterest, as: 'interests', foreignKey: 'userId', otherKey: 'interestId' });
-  Interest.belongsToMany(User, { through: UserInterest, as: 'users', foreignKey: 'interestId', otherKey: 'userId' });
+  // ✅ FIXED: Original associations with UNIQUE aliases
+  User.belongsToMany(Interest, { 
+    through: UserInterest, 
+    as: 'interestsList',  // ✅ Changed from 'interests' to 'interestsList'
+    foreignKey: 'userId', 
+    otherKey: 'interestId' 
+  });
+  
+  Interest.belongsToMany(User, { 
+    through: UserInterest, 
+    as: 'usersList',  // ✅ Changed from 'users' to 'usersList'
+    foreignKey: 'interestId', 
+    otherKey: 'userId' 
+  });
 
   User.hasMany(Project, { foreignKey: 'userId', as: 'projects' });
   Project.belongsTo(User, { foreignKey: 'userId', as: 'author' });
 
-  Project.belongsToMany(Interest, { through: ProjectInterest, as: 'interests', foreignKey: 'projectId', otherKey: 'interestId' });
-  Interest.belongsToMany(Project, { through: ProjectInterest, as: 'projects', foreignKey: 'interestId', otherKey: 'projectId' });
+  Project.belongsToMany(Interest, { 
+    through: ProjectInterest, 
+    as: 'projectInterests',  // ✅ Changed from 'interests' to 'projectInterests'
+    foreignKey: 'projectId', 
+    otherKey: 'interestId' 
+  });
+  
+  Interest.belongsToMany(Project, { 
+    through: ProjectInterest, 
+    as: 'relatedProjects',  // ✅ Changed from 'projects' to 'relatedProjects'
+    foreignKey: 'interestId', 
+    otherKey: 'projectId' 
+  });
 
-  User.belongsToMany(Project, { through: ProjectLike, as: 'likedProjects', foreignKey: 'userId', otherKey: 'projectId' });
-  Project.belongsToMany(User, { through: ProjectLike, as: 'likedByUsers', foreignKey: 'projectId', otherKey: 'userId' });
+  User.belongsToMany(Project, { 
+    through: ProjectLike, 
+    as: 'likedProjects', 
+    foreignKey: 'userId', 
+    otherKey: 'projectId' 
+  });
+  
+  Project.belongsToMany(User, { 
+    through: ProjectLike, 
+    as: 'likedByUsers', 
+    foreignKey: 'projectId', 
+    otherKey: 'userId' 
+  });
 
-  User.belongsToMany(Project, { through: ProjectBookmark, as: 'bookmarkedProjects', foreignKey: 'userId', otherKey: 'projectId' });
-  Project.belongsToMany(User, { through: ProjectBookmark, as: 'bookmarkedByUsers', foreignKey: 'projectId', otherKey: 'userId' });
+  User.belongsToMany(Project, { 
+    through: ProjectBookmark, 
+    as: 'bookmarkedProjects', 
+    foreignKey: 'userId', 
+    otherKey: 'projectId' 
+  });
+  
+  Project.belongsToMany(User, { 
+    through: ProjectBookmark, 
+    as: 'bookmarkedByUsers', 
+    foreignKey: 'projectId', 
+    otherKey: 'userId' 
+  });
 
-  User.belongsToMany(User, { through: UserFollow, as: 'following', foreignKey: 'followerId', otherKey: 'followingId' });
-  User.belongsToMany(User, { through: UserFollow, as: 'followers', foreignKey: 'followingId', otherKey: 'followerId' });
+  User.belongsToMany(User, { 
+    through: UserFollow, 
+    as: 'following', 
+    foreignKey: 'followerId', 
+    otherKey: 'followingId' 
+  });
+  
+  User.belongsToMany(User, { 
+    through: UserFollow, 
+    as: 'followers', 
+    foreignKey: 'followingId', 
+    otherKey: 'followerId' 
+  });
 
   User.hasMany(Room, { foreignKey: 'ownerId', as: 'ownedRooms' });
   Room.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
 
-  User.belongsToMany(Room, { through: RoomMember, as: 'joinedRooms', foreignKey: 'userId', otherKey: 'roomId' });
-  Room.belongsToMany(User, { through: RoomMember, as: 'members', foreignKey: 'roomId', otherKey: 'userId' });
+  User.belongsToMany(Room, { 
+    through: RoomMember, 
+    as: 'joinedRooms', 
+    foreignKey: 'userId', 
+    otherKey: 'roomId' 
+  });
+  
+  Room.belongsToMany(User, { 
+    through: RoomMember, 
+    as: 'members', 
+    foreignKey: 'roomId', 
+    otherKey: 'userId' 
+  });
 
-  Room.belongsToMany(Interest, { through: 'RoomInterests', as: 'interests', foreignKey: 'roomId', otherKey: 'interestId' });
-  Interest.belongsToMany(Room, { through: 'RoomInterests', as: 'rooms', foreignKey: 'interestId', otherKey: 'roomId' });
+  Room.belongsToMany(Interest, { 
+    through: 'RoomInterests', 
+    as: 'roomInterests',  // ✅ Changed from 'interests' to 'roomInterests'
+    foreignKey: 'roomId', 
+    otherKey: 'interestId' 
+  });
+  
+  Interest.belongsToMany(Room, { 
+    through: 'RoomInterests', 
+    as: 'relatedRooms',  // ✅ Changed from 'rooms' to 'relatedRooms'
+    foreignKey: 'interestId', 
+    otherKey: 'roomId' 
+  });
 
   console.log('✅ Database associations configured successfully');
 }
@@ -938,4 +1001,3 @@ module.exports = {
   ProjectBookmark,
   UserFollow
 };
-
