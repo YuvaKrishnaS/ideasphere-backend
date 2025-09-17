@@ -230,7 +230,6 @@ Interest.belongsToMany(Room, {
 
 module.exports = {
   sequelize,
-  Sequelize,
   User,
   Interest,
   Project,
