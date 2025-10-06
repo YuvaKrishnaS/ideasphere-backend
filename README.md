@@ -14,7 +14,6 @@
 
 <div align="center">
 
-[![CI/CD Status](https://github.com/YuvaKrishnaS/ideasphere-backend/actions/workflows/node.js.yml/badge.svg)](https://github.com/YuvaKrishnaS/ideasphere-backend/actions/workflows/node.js.yml)
 [![License: MIT](https://img.shields.io/github/license/YuvaKrishnaS/ideasphere-backend?style=flat-square)](https://github.com/YuvaKrishnaS/ideasphere-backend/blob/main/LICENSE)
 [![Contributors](https://img.shields.io/github/contributors/YuvaKrishnaS/ideasphere-backend?style=flat-square)](https://github.com/YuvaKrishnaS/ideasphere-backend/graphs/contributors)
 [![GitHub stars](https://img.shields.io/github/stars/YuvaKrishnaS/ideasphere-backend?style=social)](https://github.com/YuvaKrishnaS/ideasphere-backend/stargazers)
