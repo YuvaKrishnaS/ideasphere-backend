@@ -177,6 +177,6 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 📧 Contact
 
-Your Name - [@your_twitter_handle](https://twitter.com/your_twitter_handle) - your.email@example.com
+Your Name - [@krishna.corei7](https://twitter.com/krishna.corei7) - krishnathecodernaveen@gmail.com
 
 Project Link: [https://github.com/YuvaKrishnaS/ideasphere-backend](https://github.com/YuvaKrishnaS/ideasphere-backend)
