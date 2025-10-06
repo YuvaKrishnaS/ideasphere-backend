@@ -1,3 +1,28 @@
+// routes/upload.js (Temporary Minimal Version)
+const express = require('express');
+const router = express.Router();
+
+// A simple health check that doesn't depend on any services
+router.get('/health', (req, res) => {
+  console.log('✅ /api/upload/health endpoint was hit successfully!');
+  res.status(200).json({
+    success: true,
+    message: 'Upload route is responding!',
+    storage: 'Temporarily Disabled',
+    bucket: 'N/A'
+  });
+});
+
+// A dummy upload route
+router.post('/profile-image', (req, res) => {
+  res.status(501).json({
+    success: false,
+    message: 'File upload is temporarily disabled for debugging.'
+  });
+});
+
+module.exports = router;
+
 // const express = require('express');
 // const uploadController = require('../controllers/uploadController');
 // const uploadService = require('../services/uploadService');
@@ -103,58 +128,58 @@
 
 // module.exports = router;
 
-const express = require('express');
-const uploadController = require('../controllers/uploadController');
-const uploadService = require('../services/uploadService');
-const { authenticate } = require('../middleware/auth');
+// const express = require('express');
+// const uploadController = require('../controllers/uploadController');
+// const uploadService = require('../services/uploadService');
+// const { authenticate } = require('../middleware/auth');
 
-const router = express.Router();
+// const router = express.Router();
 
-// Configure multer for different file types
-const imageUpload = uploadService.getMulterUpload('image');
-const documentUpload = uploadService.getMulterUpload('document');
+// // Configure multer for different file types
+// const imageUpload = uploadService.getMulterUpload('image');
+// const documentUpload = uploadService.getMulterUpload('document');
 
-// Upload profile image
-router.post('/profile-image', 
-  authenticate,
-  imageUpload.single('image'),
-  uploadController.uploadProfileImage
-);
+// // Upload profile image
+// router.post('/profile-image', 
+//   authenticate,
+//   imageUpload.single('image'),
+//   uploadController.uploadProfileImage
+// );
 
-// Upload bit image
-router.post('/bit-image', 
-  authenticate,
-  imageUpload.single('image'),
-  uploadController.uploadBitImage
-);
+// // Upload bit image
+// router.post('/bit-image', 
+//   authenticate,
+//   imageUpload.single('image'),
+//   uploadController.uploadBitImage
+// );
 
-// Upload document
-router.post('/document', 
-  authenticate,
-  documentUpload.single('file'),
-  uploadController.uploadDocument
-);
+// // Upload document
+// router.post('/document', 
+//   authenticate,
+//   documentUpload.single('file'),
+//   uploadController.uploadDocument
+// );
 
-// Get user files
-router.get('/files', 
-  authenticate,
-  uploadController.getUserFiles
-);
+// // Get user files
+// router.get('/files', 
+//   authenticate,
+//   uploadController.getUserFiles
+// );
 
-// Delete file
-router.delete('/files/:fileId', 
-  authenticate,
-  uploadController.deleteFile
-);
+// // Delete file
+// router.delete('/files/:fileId', 
+//   authenticate,
+//   uploadController.deleteFile
+// );
 
-// Health check for upload service
-router.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Upload service is running',
-    storage: 'Filebase',
-    bucket: process.env.R2_BUCKET_NAME
-  });
-});
+// // Health check for upload service
+// router.get('/health', (req, res) => {
+//   res.json({
+//     success: true,
+//     message: 'Upload service is running',
+//     storage: 'Filebase',
+//     bucket: process.env.R2_BUCKET_NAME
+//   });
+// });
 
-module.exports = router;
+// module.exports = router;
