@@ -2,7 +2,7 @@
   <br />
   <!-- You can create a logo for IdeaSphere and save it as assets/logo.png -->
   <img src="https://raw.githubusercontent.com/YuvaKrishnaS/ideasphere-backend/main/assets/logo.png" alt="IdeaSphere Logo">
-  <h1 align="center">IdeaSphere Backend API</h1>
+  <h2 align="center">IdeaSphere Backend API</h2>
   <p align="center">
     The complete backend for India's first student-only social media platform, built with Node.js, Express, and PostgreSQL.
     <br />
