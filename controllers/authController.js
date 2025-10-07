@@ -78,6 +78,87 @@ class AuthController {
     }
   }
 
+  // Login
+  async login(req, res) {
+    try {
+      const { emailOrUsername, password } = req.body;
+
+      if (!emailOrUsername || !password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email/username and password are required'
+        });
+      }
+
+      // Find user
+      const user = await User.findOne({
+        where: {
+          [Op.or]: [
+            { email: emailOrUsername },
+            { username: emailOrUsername }
+          ]
+        }
+      });
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials'
+        });
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.password);
+
+      if (!isValidPassword) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials'
+        });
+      }
+
+      // Check if email is verified (optional - you can comment this out to allow unverified logins)
+      // if (!user.emailVerified) {
+      //   return res.status(403).json({
+      //     success: false,
+      //     message: 'Please verify your email before logging in',
+      //     emailVerified: false,
+      //     email: user.email
+      //   });
+      // }
+
+      // Generate JWT
+      const token = jwt.sign(
+        { id: user.id, email: user.email, username: user.username },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      res.json({
+        success: true,
+        message: 'Login successful',
+        data: {
+          token,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            emailVerified: user.emailVerified
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Login failed'
+      });
+    }
+  }
+
   // Verify email
   async verifyEmail(req, res) {
     try {
@@ -143,80 +224,6 @@ class AuthController {
     }
   }
 
-  // Login (updated to check email verification)
-  async login(req, res) {
-    try {
-      const { emailOrUsername, password } = req.body;
-
-      // Find user
-      const user = await User.findOne({
-        where: {
-          [Op.or]: [
-            { email: emailOrUsername },
-            { username: emailOrUsername }
-          ]
-        }
-      });
-
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid credentials'
-        });
-      }
-
-      // Check if email is verified
-      if (!user.emailVerified) {
-        return res.status(403).json({
-          success: false,
-          message: 'Please verify your email before logging in',
-          emailVerified: false,
-          email: user.email
-        });
-      }
-
-      // Verify password
-      const isValidPassword = await bcrypt.compare(password, user.password);
-
-      if (!isValidPassword) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid credentials'
-        });
-      }
-
-      // Generate JWT
-      const token = jwt.sign(
-        { id: user.id, email: user.email, username: user.username },
-        process.env.JWT_SECRET,
-        { expiresIn: '7d' }
-      );
-
-      res.json({
-        success: true,
-        message: 'Login successful',
-        data: {
-          token,
-          user: {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            emailVerified: user.emailVerified
-          }
-        }
-      });
-
-    } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Login failed'
-      });
-    }
-  }
-
   // Resend verification email
   async resendVerificationEmail(req, res) {
     try {
@@ -255,120 +262,30 @@ class AuthController {
     }
   }
 
-  // Request password reset
-  async requestPasswordReset(req, res) {
+  // Get current user
+  async getCurrentUser(req, res) {
     try {
-      const { email } = req.body;
-
-      const user = await User.findOne({ where: { email } });
-
-      if (!user) {
-        // Don't reveal if user exists
-        return res.json({
-          success: true,
-          message: 'If that email exists, a password reset link has been sent.'
-        });
-      }
-
-      // Generate reset token
-      const resetToken = jwt.sign(
-        { userId: user.id, email: user.email },
-        process.env.JWT_SECRET,
-        { expiresIn: '1h' }
-      );
-
-      // Save token to database
-      user.passwordResetToken = resetToken;
-      user.passwordResetExpires = new Date(Date.now() + 3600000); // 1 hour
-      await user.save();
-
-      // Create reset URL
-      const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-
-      // Send email
-      await emailService.sendPasswordResetEmail(user, resetUrl);
-
-      res.json({
-        success: true,
-        message: 'If that email exists, a password reset link has been sent.'
-      });
-
-    } catch (error) {
-      console.error('Password reset request error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to process password reset request'
-      });
-    }
-  }
-
-  // Reset password
-  async resetPassword(req, res) {
-    try {
-      const { token, newPassword } = req.body;
-
-      if (!token || !newPassword) {
-        return res.status(400).json({
-          success: false,
-          message: 'Token and new password are required'
-        });
-      }
-
-      // Verify token
-      let decoded;
-      try {
-        decoded = jwt.verify(token, process.env.JWT_SECRET);
-      } catch (error) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid or expired reset token'
-        });
-      }
-
-      // Find user
-      const user = await User.findOne({
-        where: {
-          id: decoded.userId,
-          passwordResetToken: token,
-          passwordResetExpires: {
-            [Op.gt]: new Date()
-          }
-        }
+      const user = await User.findByPk(req.user.id, {
+        attributes: { exclude: ['password'] }
       });
 
       if (!user) {
-        return res.status(400).json({
+        return res.status(404).json({
           success: false,
-          message: 'Invalid or expired reset token'
+          message: 'User not found'
         });
-      }
-
-      // Hash new password
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-      // Update user
-      user.password = hashedPassword;
-      user.passwordResetToken = null;
-      user.passwordResetExpires = null;
-      await user.save();
-
-      // Send confirmation email
-      try {
-        await emailService.sendPasswordResetConfirmationEmail(user);
-      } catch (emailError) {
-        console.error('Failed to send confirmation email:', emailError);
       }
 
       res.json({
         success: true,
-        message: 'Password reset successful! You can now log in with your new password.'
+        data: { user }
       });
 
     } catch (error) {
-      console.error('Password reset error:', error);
+      console.error('Get current user error:', error);
       res.status(500).json({
         success: false,
-        message: 'Password reset failed'
+        message: 'Failed to get user'
       });
     }
   }

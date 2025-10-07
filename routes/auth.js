@@ -1,8 +1,46 @@
 const express = require('express');
-const authController = require('../controllers/authController');
-const { authenticate } = require('../middleware/auth');
-
 const router = express.Router();
+
+// Safe import with error handling
+let authController;
+try {
+  authController = require('../controllers/authController');
+  console.log('✅ Auth controller loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load auth controller:', error.message);
+  
+  // Fallback handlers
+  const fallbackHandler = (req, res) => {
+    res.status(503).json({
+      success: false,
+      message: '/api/auth routes temporarily unavailable',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  };
+  
+  authController = {
+    register: fallbackHandler,
+    login: fallbackHandler,
+    verifyEmail: fallbackHandler,
+    resendVerificationEmail: fallbackHandler,
+    getCurrentUser: fallbackHandler
+  };
+}
+
+// Import middleware with error handling
+let authenticate;
+try {
+  const authMiddleware = require('../middleware/auth');
+  authenticate = authMiddleware.authenticate;
+} catch (error) {
+  console.error('❌ Failed to load auth middleware:', error.message);
+  authenticate = (req, res, next) => {
+    res.status(503).json({
+      success: false,
+      message: 'Authentication middleware unavailable'
+    });
+  };
+}
 
 // Registration & Login
 router.post('/register', authController.register);
@@ -12,11 +50,22 @@ router.post('/login', authController.login);
 router.get('/verify-email', authController.verifyEmail);
 router.post('/resend-verification', authController.resendVerificationEmail);
 
-// Password Reset
-router.post('/request-password-reset', authController.requestPasswordReset);
-router.post('/reset-password', authController.resetPassword);
-
-// Get current user (protected route)
+// Protected routes
 router.get('/me', authenticate, authController.getCurrentUser);
+
+// Health check for auth routes
+router.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Auth routes are operational',
+    endpoints: [
+      'POST /api/auth/register',
+      'POST /api/auth/login',
+      'GET /api/auth/verify-email',
+      'POST /api/auth/resend-verification',
+      'GET /api/auth/me'
+    ]
+  });
+});
 
 module.exports = router;
