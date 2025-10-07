@@ -1,15 +1,13 @@
 const express = require('express');
 const router = express.Router();
 
-// Safe import with error handling
 let authController;
 try {
   authController = require('../controllers/authController');
   console.log('✅ Auth controller loaded successfully');
 } catch (error) {
   console.error('❌ Failed to load auth controller:', error.message);
-  
-  // Fallback handlers
+
   const fallbackHandler = (req, res) => {
     res.status(503).json({
       success: false,
@@ -17,7 +15,7 @@ try {
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   };
-  
+
   authController = {
     register: fallbackHandler,
     login: fallbackHandler,
@@ -27,7 +25,6 @@ try {
   };
 }
 
-// Import middleware with error handling
 let authenticate;
 try {
   const authMiddleware = require('../middleware/auth');
@@ -42,18 +39,14 @@ try {
   };
 }
 
-// Registration & Login
+// Routes
 router.post('/register', authController.register);
 router.post('/login', authController.login);
-
-// Email Verification
 router.get('/verify-email', authController.verifyEmail);
 router.post('/resend-verification', authController.resendVerificationEmail);
 
-// Protected routes
 router.get('/me', authenticate, authController.getCurrentUser);
 
-// Health check for auth routes
 router.get('/health', (req, res) => {
   res.json({
     success: true,

@@ -117,15 +117,13 @@ class AuthController {
         });
       }
 
-      // Check if email is verified (optional - you can comment this out to allow unverified logins)
-      // if (!user.emailVerified) {
-      //   return res.status(403).json({
-      //     success: false,
-      //     message: 'Please verify your email before logging in',
-      //     emailVerified: false,
-      //     email: user.email
-      //   });
-      // }
+      // (Optional) Check if email is verified
+      if (!user.emailVerified) {
+        return res.status(403).json({
+          success: false,
+          message: 'Please verify your email before logging in'
+        });
+      }
 
       // Generate JWT
       const token = jwt.sign(
