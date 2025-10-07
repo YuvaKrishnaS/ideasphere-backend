@@ -34,6 +34,27 @@ if (process.env.DATABASE_URL) {
 
 // Define all models inline
 const User = sequelize.define('User', {
+  
+  emailVerified: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  emailVerificationToken: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  emailVerificationExpires: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  passwordResetToken: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  passwordResetExpires: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
